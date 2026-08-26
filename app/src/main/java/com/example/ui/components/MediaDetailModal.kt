@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,8 +76,8 @@ fun MediaDetailModal(
             .background(Color.Black)
             .testTag("media_detail_modal")
     ) {
-        // Horizontal Pager for swiping between photos/videos
-        HorizontalPager(
+        // Vertical Pager for swiping between photos/videos from top to bottom (Instagram style)
+        VerticalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
             beyondViewportPageCount = 1
