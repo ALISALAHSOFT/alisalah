@@ -73,7 +73,7 @@ fun ProfileScreen(
     handle: String,
     name: String,
     bio: String,
-    onMediaClick: (MediaItem) -> Unit,
+    onMediaClick: (MediaItem, List<MediaItem>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -349,7 +349,7 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(1f)
-                                .clickable { onMediaClick(item) }
+                                .clickable { onMediaClick(item, mediaList) }
                         ) {
                             AsyncImage(
                                 model = item.uri,
@@ -400,7 +400,7 @@ fun ProfileScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(0.65f)
-                                    .clickable { onMediaClick(item) }
+                                    .clickable { onMediaClick(item, videoItems) }
                             ) {
                                 AsyncImage(
                                     model = item.uri,
@@ -436,6 +436,7 @@ fun ProfileScreen(
                         )
                     }
                 } else {
+                    val savedMediaList = remember(savedPosts) { savedPosts.map { it.media } }
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(3),
                         modifier = Modifier.fillMaxSize(),
@@ -448,7 +449,7 @@ fun ProfileScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(1f)
-                                    .clickable { onMediaClick(post.media) }
+                                    .clickable { onMediaClick(post.media, savedMediaList) }
                             ) {
                                 AsyncImage(
                                     model = post.media.uri,

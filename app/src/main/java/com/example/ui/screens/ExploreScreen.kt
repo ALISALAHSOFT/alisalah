@@ -56,7 +56,7 @@ fun ExploreScreen(
     searchQuery: String,
     onAlbumSelected: (String) -> Unit,
     onSearchQueryChange: (String) -> Unit,
-    onMediaClick: (MediaItem) -> Unit,
+    onMediaClick: (MediaItem, List<MediaItem>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val filteredMedia = mediaList.filter { item ->
@@ -191,7 +191,7 @@ fun ExploreScreen(
                             .fillMaxWidth()
                             .aspectRatio(if (isFeatured) 1f else 1f)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable { onMediaClick(item) }
+                            .clickable { onMediaClick(item, filteredMedia) }
                             .testTag("explore_item_${item.id}"),
                         contentAlignment = Alignment.Center
                     ) {

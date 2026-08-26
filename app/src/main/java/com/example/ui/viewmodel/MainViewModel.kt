@@ -35,6 +35,8 @@ data class UiState(
     val activeTab: MainTab = MainTab.HOME,
     val activeStory: InstagramStory? = null,
     val activeCommentsPost: InstagramPost? = null,
+    val activeDetailMediaList: List<MediaItem> = emptyList(),
+    val activeDetailIndex: Int = 0,
     val activeDetailMedia: MediaItem? = null,
     val isPostCreatedDialogVisible: Boolean = false,
     val userProfileHandle: String = "local.collector",
@@ -153,12 +155,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun openMediaDetail(media: MediaItem) {
-        _uiState.value = _uiState.value.copy(activeDetailMedia = media)
+    fun openMediaDetail(media: MediaItem, list: List<MediaItem>? = null) {
+        val targetList = list ?: _uiState.value.mediaList
+        val index = targetList.indexOfFirst { it.id == media.id }.coerceAtLeast(0)
+        _uiState.value = _uiState.value.copy(
+            activeDetailMedia = media,
+            activeDetailMediaList = if (targetList.isNotEmpty()) targetList else listOf(media),
+            activeDetailIndex = index
+        )
     }
 
     fun closeMediaDetail() {
-        _uiState.value = _uiState.value.copy(activeDetailMedia = null)
+        _uiState.value = _uiState.value.copy(
+            activeDetailMedia = null,
+            activeDetailMediaList = emptyList(),
+            activeDetailIndex = 0
+        )
     }
 
     fun publishNewPost(uri: String, isVideo: Boolean, caption: String, filter: String) {

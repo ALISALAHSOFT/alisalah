@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import android.net.Uri
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -36,6 +37,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -63,6 +65,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.InstagramPost
 import com.example.data.model.MediaItem
+import com.example.ui.components.VideoPlayer
+import com.example.ui.components.VideoScaleMode
 import com.example.ui.theme.IgLikeRed
 import com.example.ui.theme.InstagramStoryGradient
 
@@ -111,8 +115,10 @@ fun ReelsScreen(
             modifier = Modifier.fillMaxSize()
         ) { page ->
             val post = reelsPosts[page]
+            val isCurrentPage = pagerState.currentPage == page
             SingleReelPage(
                 post = post,
+                isCurrentPage = isCurrentPage,
                 onLikeClick = { onLikeClick(post) },
                 onCommentClick = { onCommentClick(post) },
                 onShareClick = { onShareClick(post) },
@@ -151,11 +157,13 @@ fun ReelsScreen(
 @Composable
 private fun SingleReelPage(
     post: InstagramPost,
+    isCurrentPage: Boolean,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
     onShareClick: () -> Unit,
     onSaveClick: () -> Unit
 ) {
+    var isMuted by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(true) }
 
     // Rotating Audio Disc Transition
@@ -171,17 +179,29 @@ private fun SingleReelPage(
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable { isPlaying = !isPlaying }
+        modifier = Modifier.fillMaxSize()
     ) {
         // Media Background
-        AsyncImage(
-            model = post.media.uri,
-            contentDescription = post.caption,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
+        if (post.media.isVideo) {
+            VideoPlayer(
+                videoUri = post.media.uri,
+                autoPlay = isCurrentPage && isPlaying,
+                isLooping = true,
+                isMuted = isMuted,
+                scaleMode = VideoScaleMode.CROP,
+                onTap = { isPlaying = !isPlaying },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            AsyncImage(
+                model = post.media.uri,
+                contentDescription = post.caption,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { isPlaying = !isPlaying }
+            )
+        }
 
         // Vignette Gradients for Text Legibility
         Box(
@@ -291,6 +311,21 @@ private fun SingleReelPage(
                     tint = Color.White,
                     modifier = Modifier.size(26.dp)
                 )
+            }
+
+            // Mute / Unmute Button
+            if (post.media.isVideo) {
+                IconButton(
+                    onClick = { isMuted = !isMuted },
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                        contentDescription = "الصوت",
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
             }
 
             // 5. Audio Spinning Disc

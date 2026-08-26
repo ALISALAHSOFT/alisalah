@@ -1,5 +1,7 @@
 package com.example.ui.components
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,55 +15,101 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.MediaItem
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun MediaDetailModal(
-    media: MediaItem,
+    mediaList: List<MediaItem>,
+    initialIndex: Int,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val items = remember(mediaList) {
+        if (mediaList.isNotEmpty()) mediaList else emptyList()
+    }
+    if (items.isEmpty()) return
+
+    val validInitialIndex = initialIndex.coerceIn(0, items.size - 1)
+    val pagerState = rememberPagerState(
+        initialPage = validInitialIndex,
+        pageCount = { items.size }
+    )
+    val context = LocalContext.current
+    var isMuted by remember { mutableStateOf(false) }
+
+    val currentMedia = items.getOrElse(pagerState.currentPage) { items[0] }
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
             .testTag("media_detail_modal")
     ) {
-        // Media View
-        AsyncImage(
-            model = media.uri,
-            contentDescription = media.name,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxSize()
-        )
+        // Horizontal Pager for swiping between photos/videos
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            beyondViewportPageCount = 1
+        ) { page ->
+            val item = items[page]
+            val isCurrentPage = pagerState.currentPage == page
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                if (item.isVideo) {
+                    VideoPlayer(
+                        videoUri = item.uri,
+                        autoPlay = isCurrentPage,
+                        isLooping = true,
+                        isMuted = isMuted,
+                        scaleMode = VideoScaleMode.FIT,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    AsyncImage(
+                        model = item.uri,
+                        contentDescription = item.name,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
 
         // Top Navigation Controls
         Row(
@@ -86,33 +134,68 @@ fun MediaDetailModal(
                 )
             }
 
-            Text(
-                text = media.bucketName,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-
-            IconButton(
-                onClick = { /* share */ },
+            // Counter indicator (e.g. 3 / 15)
+            Box(
                 modifier = Modifier
-                    .clip(CircleShape)
+                    .clip(RoundedCornerShape(50))
                     .background(Color.Black.copy(alpha = 0.5f))
+                .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = "مشاركة",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                Text(
+                    text = "${pagerState.currentPage + 1} / ${items.size}",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
                 )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Mute / Unmute for videos
+                if (currentMedia.isVideo) {
+                    IconButton(
+                        onClick = { isMuted = !isMuted },
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.5f))
+                    ) {
+                        Icon(
+                            imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                            contentDescription = "كتم الصوت",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                // Share Button
+                IconButton(
+                    onClick = {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = if (currentMedia.isVideo) "video/*" else "image/*"
+                            putExtra(Intent.EXTRA_STREAM, currentMedia.uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "مشاركة الوسائط"))
+                    },
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.5f))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "مشاركة",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
 
         // Bottom Info Card
         Card(
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color.Black.copy(alpha = 0.75f)
+                containerColor = Color.Black.copy(alpha = 0.8f)
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -126,12 +209,12 @@ fun MediaDetailModal(
                     Icon(
                         imageVector = Icons.Default.Folder,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.8f),
+                        tint = Color.White.copy(alpha = 0.85f),
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.size(6.dp))
                     Text(
-                        text = media.name,
+                        text = currentMedia.name,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -145,13 +228,13 @@ fun MediaDetailModal(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = if (media.isVideo) "فيديو • ${media.durationFormatted}" else "صورة • ${media.width}x${media.height}",
-                        color = Color.White.copy(alpha = 0.7f),
+                        text = if (currentMedia.isVideo) "فيديو • ${currentMedia.durationFormatted}" else "صورة • ${currentMedia.width}x${currentMedia.height}",
+                        color = Color.White.copy(alpha = 0.75f),
                         fontSize = 12.sp
                     )
                     Text(
-                        text = formatFileSize(media.sizeBytes),
-                        color = Color.White.copy(alpha = 0.7f),
+                        text = formatFileSize(currentMedia.sizeBytes),
+                        color = Color.White.copy(alpha = 0.75f),
                         fontSize = 12.sp
                     )
                 }

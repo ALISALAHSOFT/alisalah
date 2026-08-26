@@ -2,6 +2,7 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -78,6 +79,21 @@ fun InstagramAppContent(viewModel: MainViewModel) {
     val coroutineScope = rememberCoroutineScope()
     val commentsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // Handle System Back Button gracefully without exiting the entire app unexpectedly
+    val hasActiveOverlayOrTab = uiState.activeStory != null ||
+            uiState.activeDetailMedia != null ||
+            uiState.activeCommentsPost != null ||
+            uiState.activeTab != MainTab.HOME
+
+    BackHandler(enabled = hasActiveOverlayOrTab) {
+        when {
+            uiState.activeStory != null -> viewModel.closeStory()
+            uiState.activeDetailMedia != null -> viewModel.closeMediaDetail()
+            uiState.activeCommentsPost != null -> viewModel.closeComments()
+            uiState.activeTab != MainTab.HOME -> viewModel.selectTab(MainTab.HOME)
+        }
+    }
+
     val activeCommentsPost = uiState.activeCommentsPost
     val activeComments = if (activeCommentsPost != null) {
         val commentsFlow = viewModel.getCommentsForPost(activeCommentsPost.id)
@@ -126,7 +142,7 @@ fun InstagramAppContent(viewModel: MainViewModel) {
                             onCommentClick = { viewModel.openComments(it) },
                             onShareClick = { /* share */ },
                             onSaveClick = { viewModel.toggleSave(it) },
-                            onMediaClick = { viewModel.openMediaDetail(it) },
+                            onMediaClick = { media, list -> viewModel.openMediaDetail(media, list) },
                             onAuthorClick = { viewModel.selectTab(MainTab.PROFILE) },
                             onRefresh = { viewModel.loadDeviceMedia() }
                         )
@@ -139,7 +155,7 @@ fun InstagramAppContent(viewModel: MainViewModel) {
                             searchQuery = uiState.searchQuery,
                             onAlbumSelected = { viewModel.selectAlbum(it) },
                             onSearchQueryChange = { viewModel.setSearchQuery(it) },
-                            onMediaClick = { viewModel.openMediaDetail(it) }
+                            onMediaClick = { media, list -> viewModel.openMediaDetail(media, list) }
                         )
                     }
                     MainTab.CREATE -> {
@@ -168,7 +184,7 @@ fun InstagramAppContent(viewModel: MainViewModel) {
                             handle = uiState.userProfileHandle,
                             name = uiState.userProfileName,
                             bio = uiState.userBio,
-                            onMediaClick = { viewModel.openMediaDetail(it) }
+                            onMediaClick = { media, list -> viewModel.openMediaDetail(media, list) }
                         )
                     }
                 }
@@ -184,10 +200,11 @@ fun InstagramAppContent(viewModel: MainViewModel) {
             )
         }
 
-        // Fullscreen Media Detail Modal
-        uiState.activeDetailMedia?.let { media ->
+        // Fullscreen Media Detail Modal (with Swipe/Pager support)
+        if (uiState.activeDetailMedia != null && uiState.activeDetailMediaList.isNotEmpty()) {
             MediaDetailModal(
-                media = media,
+                mediaList = uiState.activeDetailMediaList,
+                initialIndex = uiState.activeDetailIndex,
                 onClose = { viewModel.closeMediaDetail() }
             )
         }
@@ -206,3 +223,4 @@ fun InstagramAppContent(viewModel: MainViewModel) {
         }
     }
 }
+

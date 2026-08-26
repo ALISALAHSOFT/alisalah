@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import android.net.Uri
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -99,14 +100,26 @@ fun StoryViewerModal(
             .testTag("story_viewer_modal")
     ) {
         // Media Content
-        AsyncImage(
-            model = currentMedia.uri,
-            contentDescription = "قصة",
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-        )
+        if (currentMedia.isVideo) {
+            VideoPlayer(
+                videoUri = currentMedia.uri,
+                autoPlay = !isPaused,
+                isLooping = true,
+                scaleMode = VideoScaleMode.FIT,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            )
+        } else {
+            AsyncImage(
+                model = currentMedia.uri,
+                contentDescription = "قصة",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            )
+        }
 
         // Top Gradient & Bottom Gradient
         Box(
