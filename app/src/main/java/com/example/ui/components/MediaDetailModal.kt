@@ -101,7 +101,7 @@ fun MediaDetailModal(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    AsyncImage(
+                    ZoomableImage(
                         model = item.uri,
                         contentDescription = item.name,
                         contentScale = ContentScale.Fit,

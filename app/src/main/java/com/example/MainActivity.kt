@@ -1,6 +1,9 @@
 package com.example
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -21,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.InstagramPost
 import com.example.data.model.MediaItem
@@ -103,14 +107,37 @@ fun InstagramAppContent(viewModel: MainViewModel) {
         emptyList()
     }
 
+    val context = LocalContext.current
+    val sharePost: (InstagramPost) -> Unit = { post ->
+        try {
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = if (post.media.isVideo) "video/*" else "image/*"
+                putExtra(Intent.EXTRA_STREAM, post.media.uri)
+                putExtra(Intent.EXTRA_TEXT, post.caption.ifEmpty { "Shared via LocalGram" })
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(shareIntent, "مشاركة المنشور"))
+        } catch (e: Exception) {
+            val textShareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, post.caption.ifEmpty { "LocalGram Post" })
+            }
+            context.startActivity(Intent.createChooser(textShareIntent, "مشاركة المنشور"))
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
                 if (uiState.activeTab == MainTab.HOME) {
                     InstagramTopBar(
                         onNewPostClick = { viewModel.selectTab(MainTab.CREATE) },
-                        onNotificationsClick = { /* show notifications */ },
-                        onDirectMessagesClick = { /* show direct messages */ }
+                        onNotificationsClick = {
+                            Toast.makeText(context, "لا توجد إشعارات جديدة في الوضع المحلي", Toast.LENGTH_SHORT).show()
+                        },
+                        onDirectMessagesClick = {
+                            Toast.makeText(context, "الرسائل المباشرة تعمل محلياً على جهازك", Toast.LENGTH_SHORT).show()
+                        }
                     )
                 }
             },
@@ -140,7 +167,7 @@ fun InstagramAppContent(viewModel: MainViewModel) {
                             onAddStoryClick = { viewModel.selectTab(MainTab.CREATE) },
                             onLikeClick = { viewModel.toggleLike(it) },
                             onCommentClick = { viewModel.openComments(it) },
-                            onShareClick = { /* share */ },
+                            onShareClick = { sharePost(it) },
                             onSaveClick = { viewModel.toggleSave(it) },
                             onMediaClick = { media, list -> viewModel.openMediaDetail(media, list) },
                             onAuthorClick = { viewModel.selectTab(MainTab.PROFILE) },
@@ -172,7 +199,7 @@ fun InstagramAppContent(viewModel: MainViewModel) {
                             posts = uiState.posts,
                             onLikeClick = { viewModel.toggleLike(it) },
                             onCommentClick = { viewModel.openComments(it) },
-                            onShareClick = { /* share */ },
+                            onShareClick = { sharePost(it) },
                             onSaveClick = { viewModel.toggleSave(it) },
                             onCameraClick = { viewModel.selectTab(MainTab.CREATE) }
                         )

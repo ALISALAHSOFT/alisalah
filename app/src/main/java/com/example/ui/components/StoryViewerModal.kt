@@ -111,7 +111,7 @@ fun StoryViewerModal(
                     .background(Color.Black)
             )
         } else {
-            AsyncImage(
+            ZoomableImage(
                 model = currentMedia.uri,
                 contentDescription = "قصة",
                 contentScale = ContentScale.Fit,
