@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">LocalGram</string>
+    <string name="permission_title">الوصول إلى الصور والمقاطع</string>
+    <string name="permission_desc">يحتاج التطبيق إلى إذن الوصول إلى الصور ومقاطع الفيديو لعرض وسائطك في واجهة تشبه انستقرام بشكل محلي وآمن تماماً.</string>
+    <string name="grant_permission">منح الإذن</string>
+    <string name="tab_home">الرئيسية</string>
+    <string name="tab_explore">استكشاف</string>
+    <string name="tab_reels">ريلز</string>
+    <string name="tab_profile">الملف الشخصي</string>
+    <string name="stories">القصص</string>
+    <string name="posts">المنشورات</string>
+    <string name="followers">متابِعون</string>
+    <string name="following">متابَعون</string>
+    <string name="my_media">وسائطي</string>
+    <string name="saved">المحفوظات</string>
+    <string name="no_media_found">لم يتم العثور على صور أو مقاطع في المعرض</string>
+</resources>

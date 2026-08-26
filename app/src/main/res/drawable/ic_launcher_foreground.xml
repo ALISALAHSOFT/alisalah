@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Camera Squircle Outer Outline -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M40,30 L68,30 C76,30 80,34 80,42 L80,66 C80,74 76,78 68,78 L40,78 C32,78 28,74 28,66 L28,42 C28,34 32,30 40,30 Z" />
+    <!-- Camera Lens Circle -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:pathData="M54,42 A12,12 0 1,0 54,66 A12,12 0 1,0 54,42 Z" />
+    <!-- Camera Flash Dot -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M70,39 A3,3 0 1,0 70,45 A3,3 0 1,0 70,39 Z" />
+</vector>

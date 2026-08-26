@@ -1,0 +1,6 @@
+{
+  "name": "LocalGram",
+  "description": "An Instagram-style gallery app powered exclusively by your local device photos and videos with stories, reels, posts, and interactive feeds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
