@@ -32,16 +32,16 @@ data class UiState(
     val albums: List<String> = emptyList(),
     val selectedAlbum: String = "الكل",
     val searchQuery: String = "",
-    val activeTab: MainTab = MainTab.HOME,
+    val activeTab: MainTab = MainTab.REELS,
     val activeStory: InstagramStory? = null,
     val activeCommentsPost: InstagramPost? = null,
     val activeDetailMediaList: List<MediaItem> = emptyList(),
     val activeDetailIndex: Int = 0,
     val activeDetailMedia: MediaItem? = null,
     val isPostCreatedDialogVisible: Boolean = false,
-    val userProfileHandle: String = "local.collector",
-    val userProfileName: String = "معرض جهازي 📷",
-    val userBio: String = "✨ استعراض وسائط الجهاز بأسلوب انستقرام الأصلي\n🔒 حفظ محلي وآمن 100% بدون سحابة"
+    val userProfileHandle: String = "3yune_.elek",
+    val userProfileName: String = "3yune_.elek",
+    val userBio: String = "... !🤍😂😂😭"
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {

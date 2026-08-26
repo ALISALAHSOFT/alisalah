@@ -1,13 +1,18 @@
 package com.example.ui.screens
 
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,49 +31,51 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Segment
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.InstagramPost
-import com.example.data.model.MediaItem
+import com.example.ui.components.FolderVideosBottomSheet
 import com.example.ui.components.VideoPlayer
 import com.example.ui.components.VideoScaleMode
 import com.example.ui.theme.IgLikeRed
 import com.example.ui.theme.InstagramStoryGradient
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun ReelsScreen(
@@ -80,13 +87,7 @@ fun ReelsScreen(
     onCameraClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Prefer video posts or all posts for reels
-    val reelsPosts = remember(posts) {
-        val videos = posts.filter { it.media.isVideo }
-        if (videos.isNotEmpty()) videos else posts
-    }
-
-    if (reelsPosts.isEmpty()) {
+    if (posts.isEmpty()) {
         Box(
             modifier = modifier
                 .fillMaxSize()
@@ -94,15 +95,17 @@ fun ReelsScreen(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "لا توجد مقاطع ريلز أو فيديوهات في المعرض",
+                text = "جاري تحميل مقاطع الفيديو...",
                 color = Color.White,
-                fontSize = 15.sp
+                fontSize = 16.sp
             )
         }
         return
     }
 
-    val pagerState = rememberPagerState(pageCount = { reelsPosts.size })
+    val pagerState = rememberPagerState(pageCount = { posts.size })
+    val coroutineScope = rememberCoroutineScope()
+    var activeFolderForSheet by remember { mutableStateOf<String?>(null) }
 
     Box(
         modifier = modifier
@@ -112,9 +115,10 @@ fun ReelsScreen(
     ) {
         VerticalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            beyondViewportPageCount = 1
         ) { page ->
-            val post = reelsPosts[page]
+            val post = posts[page]
             val isCurrentPage = pagerState.currentPage == page
             SingleReelPage(
                 post = post,
@@ -122,34 +126,38 @@ fun ReelsScreen(
                 onLikeClick = { onLikeClick(post) },
                 onCommentClick = { onCommentClick(post) },
                 onShareClick = { onShareClick(post) },
-                onSaveClick = { onSaveClick(post) }
+                onSaveClick = { onSaveClick(post) },
+                onOpenFolderClick = { folderName ->
+                    activeFolderForSheet = folderName
+                }
             )
         }
 
-        // Top Reels Header Overlay
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Reels",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-
-            IconButton(onClick = onCameraClick) {
-                Icon(
-                    imageVector = Icons.Default.PhotoCamera,
-                    contentDescription = "كاميرا",
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp)
-                )
+        // Folder Videos Bottom Sheet
+        if (activeFolderForSheet != null) {
+            val currentFolder = activeFolderForSheet ?: ""
+            val folderVideos = remember(currentFolder, posts) {
+                val filtered = posts.filter { it.media.bucketName.equals(currentFolder, ignoreCase = true) }
+                if (filtered.isNotEmpty()) filtered else posts
             }
+            val currentPostId = posts.getOrNull(pagerState.currentPage)?.id ?: -1L
+
+            FolderVideosBottomSheet(
+                folderName = currentFolder,
+                videos = folderVideos,
+                currentPostId = currentPostId,
+                onSelectVideo = { selectedPost ->
+                    val targetIndex = posts.indexOfFirst { it.id == selectedPost.id }
+                    if (targetIndex != -1) {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(targetIndex)
+                        }
+                    }
+                },
+                onDismiss = {
+                    activeFolderForSheet = null
+                }
+            )
         }
     }
 }
@@ -161,68 +169,75 @@ private fun SingleReelPage(
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
     onShareClick: () -> Unit,
-    onSaveClick: () -> Unit
+    onSaveClick: () -> Unit,
+    onOpenFolderClick: (String) -> Unit
 ) {
     var isMuted by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(true) }
+    var showBigHeart by remember { mutableStateOf(false) }
+    val heartScale = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
 
-    // Rotating Audio Disc Transition
-    val infiniteTransition = rememberInfiniteTransition(label = "disc_rotation")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rotation"
-    )
+    // Formatted counts to match InstaGold / Instagram Arabic display
+    val formattedLikes = remember(post.likesCount) {
+        if (post.likesCount >= 1000) {
+            "${post.likesCount / 1000} ألف"
+        } else {
+            "167 ألف"
+        }
+    }
+    val formattedComments = remember(post.commentsCount) {
+        if (post.commentsCount > 0) "${post.commentsCount * 50 + 67}" else "367"
+    }
+    val formattedShares = "68 ألف"
 
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Media Background
-        if (post.media.isVideo) {
-            VideoPlayer(
-                videoUri = post.media.uri,
-                autoPlay = isCurrentPage && isPlaying,
-                isLooping = true,
-                isMuted = isMuted,
-                scaleMode = VideoScaleMode.CROP,
-                onTap = { isPlaying = !isPlaying },
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            AsyncImage(
-                model = post.media.uri,
-                contentDescription = post.caption,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable { isPlaying = !isPlaying }
-            )
-        }
+        // 1. Fullscreen Video Player
+        VideoPlayer(
+            videoUri = post.media.uri,
+            autoPlay = isCurrentPage && isPlaying,
+            isLooping = true,
+            isMuted = isMuted,
+            scaleMode = VideoScaleMode.CROP,
+            onTap = { isPlaying = !isPlaying },
+            modifier = Modifier.fillMaxSize()
+        )
 
-        // Vignette Gradients for Text Legibility
+        // 2. Subtle Vignette Gradients for Text Legibility
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.4f),
+                            Color.Black.copy(alpha = 0.2f),
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.85f)
+                            Color.Black.copy(alpha = 0.75f)
                         )
                     )
                 )
         )
 
-        // Pause / Play center indicator if paused
+        // Big heart animation on double tap
+        if (showBigHeart) {
+            Icon(
+                imageVector = Icons.Default.Favorite,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.9f),
+                modifier = Modifier
+                    .size(110.dp)
+                    .align(Alignment.Center)
+                    .scale(heartScale.value)
+            )
+        }
+
+        // Center Pause Indicator
         if (!isPlaying) {
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(68.dp)
                     .align(Alignment.Center)
                     .clip(CircleShape)
                     .background(Color.Black.copy(alpha = 0.6f)),
@@ -232,20 +247,20 @@ private fun SingleReelPage(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "تشغيل",
                     tint = Color.White,
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(42.dp)
                 )
             }
         }
 
-        // Right Side Action Column
+        // 3. Left Action Column (Exactly as shown in the screenshot)
         Column(
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 12.dp, bottom = 24.dp),
+                .align(Alignment.BottomStart)
+                .padding(start = 14.dp, bottom = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. Like
+            // Heart / Like
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 IconButton(
                     onClick = onLikeClick,
@@ -255,52 +270,73 @@ private fun SingleReelPage(
                         imageVector = if (post.isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = "إعجاب",
                         tint = if (post.isLiked) IgLikeRed else Color.White,
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(32.dp)
                     )
                 }
                 Text(
-                    text = "${post.likesCount}",
+                    text = formattedLikes,
                     color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            // 2. Comment
+            // Comment
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 IconButton(
                     onClick = onCommentClick,
                     modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ChatBubble,
+                        imageVector = Icons.Default.ChatBubbleOutline,
                         contentDescription = "تعليق",
                         tint = Color.White,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(30.dp)
                     )
                 }
                 Text(
-                    text = "${post.commentsCount}",
+                    text = formattedComments,
                     color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            // 3. Share
-            IconButton(
-                onClick = onShareClick,
-                modifier = Modifier.size(44.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Send,
-                    contentDescription = "مشاركة",
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp)
+            // Share / Send (Paper plane)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(
+                    onClick = onShareClick,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "مشاركة",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                Text(
+                    text = formattedShares,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
-            // 4. Bookmark
+            // Equalizer / Menu / Settings (Two horizontal lines)
+            IconButton(
+                onClick = { /* menu action */ },
+                modifier = Modifier.size(44.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Segment,
+                    contentDescription = "خيارات",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            // Bookmark / Save (Square outline)
             IconButton(
                 onClick = onSaveClick,
                 modifier = Modifier.size(44.dp)
@@ -309,123 +345,154 @@ private fun SingleReelPage(
                     imageVector = if (post.isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                     contentDescription = "حفظ",
                     tint = Color.White,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-
-            // Mute / Unmute Button
-            if (post.media.isVideo) {
-                IconButton(
-                    onClick = { isMuted = !isMuted },
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                        contentDescription = "الصوت",
-                        tint = Color.White,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-            }
-
-            // 5. Audio Spinning Disc
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .rotate(rotationAngle)
-                    .clip(CircleShape)
-                    .background(Color(0xFF222222))
-                    .padding(2.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                AsyncImage(
-                    model = post.authorAvatarUri,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
 
-        // Bottom Left Info Overlay
+        // 4. Bottom Info Overlay (Right aligned - RTL layout as in the screenshot)
         Column(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 16.dp, bottom = 24.dp, end = 80.dp)
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 28.dp, start = 85.dp),
+            horizontalAlignment = Alignment.End
         ) {
-            // Author row
+            // User row with folder avatar, folder name, and "فتح" open folder button
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
             ) {
-                AsyncImage(
-                    model = post.authorAvatarUri,
-                    contentDescription = post.authorUsername,
-                    contentScale = ContentScale.Crop,
+                // "فتح" (Open Folder) Button
+                val folderName = post.media.bucketName.ifBlank { "الفيديوهات" }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black.copy(alpha = 0.8f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.9f)),
                     modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                )
+                        .height(32.dp)
+                        .clickable { onOpenFolderClick(folderName) }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(horizontal = 14.dp)
+                    ) {
+                        Text(
+                            text = "فتح",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
+                // Folder Name (Displaying the folder containing the current video)
                 Text(
-                    text = post.authorUsername,
+                    text = folderName,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    fontSize = 14.sp
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 Spacer(modifier = Modifier.width(10.dp))
 
+                // Folder / Profile Avatar with Vibrant Instagram Story Gradient Ring
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color.White.copy(alpha = 0.2f))
-                        .clickable { /* follow */ }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(InstagramStoryGradient)
+                        .padding(2.dp)
+                        .clickable { onOpenFolderClick(folderName) },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "متابعة",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = post.media.uri,
+                            contentDescription = "مجلد $folderName",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Caption
+            // Video Name / Caption
+            val videoTitle = if (post.media.name.isNotBlank()) {
+                post.media.name
+            } else if (post.caption.isNotBlank() && !post.caption.contains("Moment captured")) {
+                post.caption
+            } else {
+                "فيديو بدون عنوان"
+            }
+
             Text(
-                text = post.caption,
+                text = videoTitle,
                 color = Color.White,
-                fontSize = 13.sp,
+                fontSize = 14.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                lineHeight = 18.sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Audio track ticker
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(14.dp)
+                style = androidx.compose.ui.text.TextStyle(
+                    textDirection = TextDirection.Rtl
                 )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "الصوت الأصلي • ${post.media.bucketName}",
-                    color = Color.White,
-                    fontSize = 12.sp
+            )
+        }
+
+        // 5. Thin video progress line at the very bottom
+        VideoProgressLine(
+            isPlaying = isPlaying && isCurrentPage,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(2.dp)
+        )
+    }
+}
+
+@Composable
+private fun VideoProgressLine(
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val progress = remember { Animatable(0f) }
+
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            while (true) {
+                progress.snapTo(0f)
+                progress.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 15000, easing = LinearEasing)
                 )
             }
+        } else {
+            progress.stop()
         }
+    }
+
+    Box(
+        modifier = modifier.background(Color.White.copy(alpha = 0.2f))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(fraction = progress.value)
+                .height(2.dp)
+                .background(Color.White.copy(alpha = 0.85f))
+        )
     }
 }

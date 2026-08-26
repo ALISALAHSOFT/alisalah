@@ -24,7 +24,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.InstagramPost
 import com.example.data.model.MediaItem
@@ -87,14 +89,14 @@ fun InstagramAppContent(viewModel: MainViewModel) {
     val hasActiveOverlayOrTab = uiState.activeStory != null ||
             uiState.activeDetailMedia != null ||
             uiState.activeCommentsPost != null ||
-            uiState.activeTab != MainTab.HOME
+            uiState.activeTab != MainTab.REELS
 
     BackHandler(enabled = hasActiveOverlayOrTab) {
         when {
             uiState.activeStory != null -> viewModel.closeStory()
             uiState.activeDetailMedia != null -> viewModel.closeMediaDetail()
             uiState.activeCommentsPost != null -> viewModel.closeComments()
-            uiState.activeTab != MainTab.HOME -> viewModel.selectTab(MainTab.HOME)
+            uiState.activeTab != MainTab.REELS -> viewModel.selectTab(MainTab.REELS)
         }
     }
 
@@ -128,6 +130,7 @@ fun InstagramAppContent(viewModel: MainViewModel) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
+            containerColor = Color.Black,
             topBar = {
                 if (uiState.activeTab == MainTab.HOME) {
                     InstagramTopBar(
@@ -155,7 +158,10 @@ fun InstagramAppContent(viewModel: MainViewModel) {
                 targetState = uiState.activeTab,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
                 label = "tab_transition",
-                modifier = Modifier.padding(innerPadding)
+                modifier = Modifier.padding(
+                    bottom = innerPadding.calculateBottomPadding(),
+                    top = if (uiState.activeTab == MainTab.HOME) innerPadding.calculateTopPadding() else 0.dp
+                )
             ) { currentTab ->
                 when (currentTab) {
                     MainTab.HOME -> {

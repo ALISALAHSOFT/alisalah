@@ -31,75 +31,12 @@ class LocalMediaRepository(
     private val dao = database.interactionDao()
 
     /**
-     * Query all images and videos from device MediaStore
+     * Query all videos from device MediaStore (Videos Only)
      */
     suspend fun queryDeviceMedia(): List<MediaItem> = withContext(Dispatchers.IO) {
         val mediaList = mutableListOf<MediaItem>()
 
-        // 1. Fetch Images
-        val imageProjection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.MIME_TYPE,
-            MediaStore.Images.Media.DATE_ADDED,
-            MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
-            MediaStore.Images.Media.SIZE,
-            MediaStore.Images.Media.WIDTH,
-            MediaStore.Images.Media.HEIGHT
-        )
-        val imageSortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-
-        try {
-            val cursor = context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                imageProjection,
-                null,
-                null,
-                imageSortOrder
-            )
-            cursor?.use { c ->
-                val idCol = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                val nameCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                val mimeCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)
-                val dateCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
-                val bucketCol = c.getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
-                val sizeCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
-                val widthCol = c.getColumnIndex(MediaStore.Images.Media.WIDTH)
-                val heightCol = c.getColumnIndex(MediaStore.Images.Media.HEIGHT)
-
-                while (c.moveToNext()) {
-                    val id = c.getLong(idCol)
-                    val name = c.getString(nameCol) ?: "IMG_$id"
-                    val mime = c.getString(mimeCol) ?: "image/jpeg"
-                    val dateAdded = c.getLong(dateCol)
-                    val bucket = if (bucketCol != -1) c.getString(bucketCol) ?: "Camera" else "Camera"
-                    val size = c.getLong(sizeCol)
-                    val width = if (widthCol != -1) c.getInt(widthCol) else 1080
-                    val height = if (heightCol != -1) c.getInt(heightCol) else 1080
-
-                    val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                    mediaList.add(
-                        MediaItem(
-                            id = id,
-                            uri = uri,
-                            name = name,
-                            mimeType = mime,
-                            isVideo = false,
-                            durationMs = 0,
-                            dateAddedSec = dateAdded,
-                            bucketName = bucket,
-                            sizeBytes = size,
-                            width = width,
-                            height = height
-                        )
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        // 2. Fetch Videos
+        // Query only MediaStore Videos
         val videoProjection = arrayOf(
             MediaStore.Video.Media._ID,
             MediaStore.Video.Media.DISPLAY_NAME,
@@ -137,18 +74,16 @@ class LocalMediaRepository(
                     val name = c.getString(nameCol) ?: "VID_$id"
                     val mime = c.getString(mimeCol) ?: "video/mp4"
                     val dateAdded = c.getLong(dateCol)
-                    val bucket = if (bucketCol != -1) c.getString(bucketCol) ?: "Videos" else "Videos"
+                    val bucket = if (bucketCol != -1) c.getString(bucketCol) ?: "Reels" else "Reels"
                     val size = c.getLong(sizeCol)
                     val duration = if (durCol != -1) c.getLong(durCol) else 0L
                     val width = if (widthCol != -1) c.getInt(widthCol) else 1080
                     val height = if (heightCol != -1) c.getInt(heightCol) else 1920
 
-                    // Use negative id or offset for videos to ensure unique IDs across both tables
-                    val uniqueId = -(id + 1000000L)
                     val uri = ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id)
                     mediaList.add(
                         MediaItem(
-                            id = uniqueId,
+                            id = id,
                             uri = uri,
                             name = name,
                             mimeType = mime,
@@ -167,7 +102,53 @@ class LocalMediaRepository(
             e.printStackTrace()
         }
 
-        // Sort all mixed media chronologically descending
+        // If device has no local videos yet, provide built-in sample videos
+        if (mediaList.isEmpty()) {
+            val sampleVideos = listOf(
+                MediaItem(
+                    id = 1001L,
+                    uri = Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"),
+                    name = "3yune_clip_1.mp4",
+                    mimeType = "video/mp4",
+                    isVideo = true,
+                    durationMs = 15000,
+                    dateAddedSec = System.currentTimeMillis() / 1000,
+                    bucketName = "Reels",
+                    sizeBytes = 2500000,
+                    width = 1080,
+                    height = 1920
+                ),
+                MediaItem(
+                    id = 1002L,
+                    uri = Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"),
+                    name = "3yune_clip_2.mp4",
+                    mimeType = "video/mp4",
+                    isVideo = true,
+                    durationMs = 15000,
+                    dateAddedSec = (System.currentTimeMillis() / 1000) - 3600,
+                    bucketName = "Reels",
+                    sizeBytes = 2800000,
+                    width = 1080,
+                    height = 1920
+                ),
+                MediaItem(
+                    id = 1003L,
+                    uri = Uri.parse("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"),
+                    name = "3yune_clip_3.mp4",
+                    mimeType = "video/mp4",
+                    isVideo = true,
+                    durationMs = 15000,
+                    dateAddedSec = (System.currentTimeMillis() / 1000) - 7200,
+                    bucketName = "Reels",
+                    sizeBytes = 3100000,
+                    width = 1080,
+                    height = 1920
+                )
+            )
+            mediaList.addAll(sampleVideos)
+        }
+
+        // Sort chronologically descending
         mediaList.sortByDescending { it.dateAddedSec }
         mediaList
     }
