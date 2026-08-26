@@ -39,9 +39,9 @@ data class UiState(
     val activeDetailIndex: Int = 0,
     val activeDetailMedia: MediaItem? = null,
     val isPostCreatedDialogVisible: Boolean = false,
-    val userProfileHandle: String = "3yune_.elek",
-    val userProfileName: String = "3yune_.elek",
-    val userBio: String = "... !🤍😂😂😭"
+    val userProfileHandle: String = "ali_salah_center",
+    val userProfileName: String = "مركز علي صلاح لصيانة وبرمجة الهواتف",
+    val userBio: String = "📍 رداع- باب المستشفى- أمام المركز الذهبي\n📞 772483162 - 735748372\n🔧 صيانة وبرمجة جميع أنواع الهواتف الذكية"
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {

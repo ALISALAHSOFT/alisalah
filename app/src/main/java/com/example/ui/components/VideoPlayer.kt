@@ -18,20 +18,27 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,6 +62,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeout
 
 enum class VideoScaleMode {
@@ -70,13 +79,16 @@ fun VideoPlayer(
     autoPlay: Boolean = true,
     isLooping: Boolean = true,
     isMuted: Boolean = false,
-    scaleMode: VideoScaleMode = VideoScaleMode.CROP,
+    scaleMode: VideoScaleMode = VideoScaleMode.FIT,
+    onProgressUpdate: ((currentMs: Long, durationMs: Long) -> Unit)? = null,
+    seekToFraction: Float? = null,
     onTap: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var isPlayingState by remember { mutableStateOf(autoPlay) }
     var isFastForwarding by remember { mutableStateOf(false) }
+    var currentScaleMode by remember { mutableStateOf(scaleMode) }
 
     val exoPlayer = remember(videoUri) {
         ExoPlayer.Builder(context).build().apply {
@@ -86,6 +98,26 @@ fun VideoPlayer(
             playWhenReady = autoPlay
             volume = if (isMuted) 0f else 1f
             prepare()
+        }
+    }
+
+    // Handle external seek requests
+    LaunchedEffect(seekToFraction) {
+        if (seekToFraction != null && exoPlayer.duration > 0) {
+            val targetMs = (seekToFraction * exoPlayer.duration).toLong()
+            exoPlayer.seekTo(targetMs)
+        }
+    }
+
+    // Real-time progress tracker loop
+    LaunchedEffect(exoPlayer, autoPlay) {
+        while (isActive) {
+            val dur = exoPlayer.duration.coerceAtLeast(0L)
+            val cur = exoPlayer.currentPosition.coerceAtLeast(0L)
+            if (dur > 0 && onProgressUpdate != null) {
+                onProgressUpdate(cur, dur)
+            }
+            delay(100)
         }
     }
 
@@ -127,6 +159,7 @@ fun VideoPlayer(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(Color.Black)
             .pointerInput(exoPlayer, onTap) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
@@ -187,7 +220,7 @@ fun VideoPlayer(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
-                    resizeMode = when (scaleMode) {
+                    resizeMode = when (currentScaleMode) {
                         VideoScaleMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                         VideoScaleMode.CROP -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     }
@@ -195,7 +228,7 @@ fun VideoPlayer(
             },
             update = { playerView ->
                 playerView.player = exoPlayer
-                playerView.resizeMode = when (scaleMode) {
+                playerView.resizeMode = when (currentScaleMode) {
                     VideoScaleMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                     VideoScaleMode.CROP -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                 }
